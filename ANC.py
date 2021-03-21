@@ -33,27 +33,43 @@ streams = {}
 #Open the microphone stream
 streams['ambient'] = audio.open(format=audioFormat, channels = 1, rate=sampRate, input=True, frames_per_buffer=chunk, input_device_index = devices['ambient'])
 #Open the feedback microphone streams
-streams['inEar'] = audio.open(format=audioFormat, channels = 2, rate=sampRate, input=True, frames_per_buffer=chunk, input_device_index = devices['inEar'])
+#streams['inEar'] = audio.open(format=audioFormat, channels = 2, rate=sampRate, input=True, frames_per_buffer=chunk, input_device_index = devices['inEar'])
 #Open the output streams
 streams['output'] = audio.open(format=audioFormat, channels = 2, rate=sampRate, output=True, frames_per_buffer=chunk, input_device_index = devices['output'])
 
 #Main feedback loop
 #Break on Ctrl-C input. TODO: Change this to not be an exception. 
+n=0
+inEarData=np.ndarray([2, chunk*2])
+inEarFFT=np.ndarray([2, chunk*2])
 try:
-    while(1):
+    while(n<1):
         #Read and unpack all data
-        ambientData = streams['ambient'].read(chunk)
-        ambientData = np.array(struct.unpack(str(2 * chunk) + 'B', ambientData), dtype='b')
-        #TODO add the other two input streams
-        
+        #Ambient
+        ambientRead = streams['ambient'].read(chunk)
+        ambientData = np.array(struct.unpack(str(2 * chunk) + 'B', ambientRead), dtype='b')
+        #In-Ear
+        #Deinterleave the stereo data
+        """
+        deinterleaved=[streams['inEar'].read(chunk)[idx::2] for idx in range(2)]
+        for c in range(2):
+            #Unpack both channels
+            inEarData[c,:] = np.array(struct.unpack(str(2*chunk) + 'B', deinterleaved[c]), dtype='b')
+            #FFT both channels
+            inEarFFT[c,:] = np.fft.fft(inEarData[c,:])
+            inEarFreqs= np.fft.fftfreq(len(inEarData[c,:]))
+            freqIdx = np.argmax(np.abs(inEarFFT[c,:]))
+
+            print(str(c) + " peak freq: " + str(abs(inEarFreqs[freqIdx]*sampRate*2)))
+        """
         #FFT the ambient audio the find primary frequencies to block
-        freqs = np.fft.fftfreq(len(ambientData))
+        ambientFreqs = np.fft.fftfreq(len(ambientData))
         ambientFFT=np.fft.fft(ambientData)
         #Find the peak frequency
         #TODO - find more than one frequency.
         freqIdx = np.argmax(np.abs(ambientFFT))
-        peakFreq = freqs[freqIdx]
-        print("Peak frequency: {0}".format(str(abs(peakFreq*sampRate))))
+        peakFreq = ambientFreqs[freqIdx]
+        print("Peak frequency: {0}".format(str(abs(peakFreq*sampRate*2))))
 
         #frames.append(ambientData)
 except KeyboardInterrupt:

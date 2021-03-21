@@ -10,5 +10,5 @@ inEarMic = 17
 configDevices = {}
 configDevices['ambient']=1
 configDevices['inEar']=17
-configDevices['Output']=26
+configDevices['output']=22
 
