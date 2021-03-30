@@ -2,6 +2,7 @@ import pyaudio
 import numpy as np
 import struct
 import time
+import matplotlib.pyplot as plt
 from Config import sampRate, chunk, audioFormat, promptDeviceInput
 
 audio = pyaudio.PyAudio()
@@ -25,8 +26,8 @@ else:
     devices = configDevices
 
 #Print selected devices
-for dev in devices:
-    print("{0} device: {1}".format(dev, audio.get_device_info_by_index(devices[dev])["name"]))
+#for dev in devices:
+#    print("{0} device: {1}".format(dev, audio.get_device_info_by_index(devices[dev])["name"]))
 #time.sleep(5)
 
 streams = {}
@@ -35,13 +36,34 @@ streams['ambient'] = audio.open(format=audioFormat, channels = 1, rate=sampRate,
 #Open the feedback microphone streams
 #streams['inEar'] = audio.open(format=audioFormat, channels = 2, rate=sampRate, input=True, frames_per_buffer=chunk, input_device_index = devices['inEar'])
 #Open the output streams
-streams['output'] = audio.open(format=audioFormat, channels = 2, rate=sampRate, output=True, frames_per_buffer=chunk, input_device_index = devices['output'])
+#streams['output'] = audio.open(format=audioFormat, channels = 2, rate=sampRate, output=True, frames_per_buffer=chunk, input_device_index = devices['output'])
 
 #Main feedback loop
 #Break on Ctrl-C input. TODO: Change this to not be an exception. 
 n=0
 inEarData=np.ndarray([2, chunk*2])
 inEarFFT=np.ndarray([2, chunk*2])
+
+#Initialize waveform chart
+plt.ion()
+
+figure, ax = plt.subplots(nrows=len(devices),figsize=(8,6),sharex=True,)
+lines = []
+
+inputPlots={}
+inputPlots[0]="Ambient"
+inputPlots[1]="In-ear left"
+inputPlots[2]="In-ear right"
+d=0
+for dev in inputPlots.values():
+    ax[d].set_ylim([-400,400])
+    ax[d].set_title(dev)
+    lines.append(ax[d].plot(range(chunk*2))[0])
+    d+=1
+
+
+
+
 try:
     while(n<1):
         #Read and unpack all data
@@ -62,6 +84,14 @@ try:
 
             print(str(c) + " peak freq: " + str(abs(inEarFreqs[freqIdx]*sampRate*2)))
         """
+        lines[0].set_xdata(range(chunk*2))
+        lines[0].set_ydata(ambientData)
+        
+        figure.canvas.draw()
+        
+        figure.canvas.flush_events()
+
+
         #FFT the ambient audio the find primary frequencies to block
         ambientFreqs = np.fft.fftfreq(len(ambientData))
         ambientFFT=np.fft.fft(ambientData)
